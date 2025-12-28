@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>El F. Barbershop | Agenda de Citas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <link rel="stylesheet" href="index.css">
+  <link rel="icon" type="image" href="barbeshop.jpg">
+</head>
+
+<body>
+
+<header class="header">
+  <h1>💈 El F. Barbershop 💈</h1>
+  <p>Estilo, calidad y tradición</p>
+</header>
+
+<div class="contenedor">
+  <h2>Agenda de Citas</h2>
+
+  <input type="text" id="nombre" placeholder="Nombre del cliente">
+  <input type="date" id="fecha">
+
+  <!-- SELECT DE HORA -->
+  <select id="hora">
+    <option value="">Selecciona una hora</option>
+  </select>
+
+  <button onclick="agendarCita()">Agendar cita</button>
+
+  <h3>Citas agendadas</h3>
+  <div id="listaCitas"></div>
+</div>
+
+<div class="contenedor">
+  <h2>⏰ Recordatorio de cita</h2>
+  <input type="text" id="buscarNombre" placeholder="Escribe tu nombre">
+  <button onclick="buscarCita()">Ver mi cita</button>
+  <p id="resultadoCita"></p>
+</div>
+
+
+<footer class="footer">
+  <p>© 2025 <a href="https://www.instagram.com/f._barberchop?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank">El Gordo Barbershop  </a> 
+    <br> <p>Creador <a href="https://www.instagram.com/prog.ramming193/?utm_source=ig_web_button_share_sheet"target="_blank">progrador</a></p> </p>
+
+</footer>
+
+<script>
+const listaCitas = document.getElementById("listaCitas");
+const horaSelect = document.getElementById("hora");
+const fechaInput = document.getElementById("fecha");
+
+const PASSWORD_BARBERO = "goldo1234.";
+const WHATSAPP_NUMERO = "18295572078";
+
+/* ===== BLOQUEAR DÍAS PASADOS ===== */
+const hoy = new Date().toISOString().split("T")[0];
+fechaInput.min = hoy;
+
+/* ===== HORARIO (8 AM - 11 PM) ===== */
+const HORA_INICIO = 8;   // 8 AM
+const HORA_FIN = 23;     // 11 PM
+
+/* ===== OBTENER DÍA ===== */
+function obtenerDia(fecha) {
+  const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+  return dias[new Date(fecha + "T00:00:00").getDay()];
+}
+
+/* ===== FORMATO 12H CON AM/PM ===== */
+function formatoHora(hora24) {
+  const periodo = hora24 >= 12 ? "PM" : "AM";
+  let h = hora24 % 12;
+  if (h === 0) h = 12;
+  return `${h} ${periodo}`;
+}
+
+/* ===== GENERAR HORAS DISPONIBLES ===== */
+function generarHoras(fecha) {
+  horaSelect.innerHTML = `<option value="">Selecciona una hora</option>`;
+  if (!fecha) return;
+
+  const citas = JSON.parse(localStorage.getItem("citas")) || [];
+  const horasOcupadas = citas
+    .filter(c => c.fecha === fecha)
+    .map(c => c.hora);
+
+  for (let h = HORA_INICIO; h <= HORA_FIN; h++) {
+    const horaValue = `${h.toString().padStart(2, "0")}:00`;
+
+    if (!horasOcupadas.includes(horaValue)) {
+      const option = document.createElement("option");
+      option.value = horaValue;
+      option.textContent = formatoHora(h);
+      horaSelect.appendChild(option);
+    }
+  }
+}
+
+/* ===== AL CAMBIAR FECHA ===== */
+fechaInput.addEventListener("change", e => {
+  generarHoras(e.target.value);
+});
+
+/* ===== WHATSAPP ===== */
+function enviarWhatsApp(nombre, fecha, hora) {
+  const dia = obtenerDia(fecha);
+  const horaNum = parseInt(hora);
+  const horaTexto = formatoHora(horaNum);
+
+  const mensaje =
+    `💈 *Cita agendada*%0A` +
+    `👤 Cliente: ${nombre}%0A` +
+    `📅 Día: ${dia} ${fecha}%0A` +
+    `⏰ Hora: ${horaTexto}`;
+
+  window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}`, "_blank");
+}
+
+/* ===== AGENDAR CITA ===== */
+function agendarCita() {
+  const nombre = document.getElementById("nombre").value;
+  const fecha = fechaInput.value;
+  const hora = horaSelect.value;
+
+  if (!nombre || !fecha || !hora) {
+    alert("⚠️ Completa todos los campos");
+    return;
+  }
+
+  if (fecha < hoy) {
+    alert("⛔ No puedes agendar días pasados");
+    return;
+  }
+
+  const citas = JSON.parse(localStorage.getItem("citas")) || [];
+
+  if (citas.some(c => c.fecha === fecha && c.hora === hora)) {
+    alert("⛔ Ese turno ya está ocupado");
+    generarHoras(fecha);
+    return;
+  }
+
+  citas.push({ nombre, fecha, hora });
+  localStorage.setItem("citas", JSON.stringify(citas));
+
+  enviarWhatsApp(nombre, fecha, hora);
+  cargarCitas();
+  generarHoras(fecha);
+
+  document.getElementById("nombre").value = "";
+}
+
+/* ===== MOSTRAR CITAS ===== */
+function mostrarCita(cita, index) {
+  const div = document.createElement("div");
+  const horaNum = parseInt(cita.hora);
+
+  div.className = "cita";
+  div.innerHTML = `
+    ✂️ <strong>${cita.nombre}</strong><br>
+    📅 ${obtenerDia(cita.fecha)} (${cita.fecha})<br>
+    ⏰ ${formatoHora(horaNum)}<br>
+    <button onclick="borrarCita(${index})">🗑️ Eliminar</button>
+  `;
+  listaCitas.appendChild(div);
+}
+
+/* ===== CARGAR CITAS ===== */
+function cargarCitas() {
+  listaCitas.innerHTML = "";
+  const citas = JSON.parse(localStorage.getItem("citas")) || [];
+  citas.forEach((c, i) => mostrarCita(c, i));
+}
+
+/* ===== BORRAR CITA ===== */
+function borrarCita(index) {
+  const pass = prompt("Contraseña del barbero:");
+  if (pass !== PASSWORD_BARBERO) {
+    alert("❌ Incorrecta");
+    return;
+  }
+
+  const citas = JSON.parse(localStorage.getItem("citas")) || [];
+  citas.splice(index, 1);
+  localStorage.setItem("citas", JSON.stringify(citas));
+  cargarCitas();
+}
+
+/* ===== BUSCAR CITA (RECORDATORIO) ===== */
+function buscarCita() {
+  const nombre = document.getElementById("buscarNombre").value.toLowerCase();
+  const resultado = document.getElementById("resultadoCita");
+  const citas = JSON.parse(localStorage.getItem("citas")) || [];
+
+  const cita = citas.find(c => c.nombre.toLowerCase() === nombre);
+
+  if (cita) {
+    const horaNum = parseInt(cita.hora);
+    resultado.innerHTML = `✅ Tu cita es el <strong>${obtenerDia(cita.fecha)}</strong> (${cita.fecha}) a las <strong>${formatoHora(horaNum)}</strong>`;
+  } else {
+    resultado.innerHTML = "❌ No se encontró ninguna cita con ese nombre";
+  }
+}
+
+/* ===== INICIO ===== */
+cargarCitas();
+</script>
+
+</body>
+</html>
