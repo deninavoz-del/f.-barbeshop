@@ -40,11 +40,9 @@
   <p id="resultadoCita"></p>
 </div>
 
-
 <footer class="footer">
-  <p>© 2025 <a href="https://www.instagram.com/f._barberchop?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank">El Gordo Barbershop  </a> 
-    <br> <p>Creador <a href="https://www.instagram.com/prog.ramming193/?utm_source=ig_web_button_share_sheet"target="_blank">Programador A.H.V</a></p> </p>
-
+  <p>© 2025 <a href="https://www.instagram.com/f._barberchop?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank">El Gordo Barbershop</a> 
+    <br> <p>Creador <a href="https://www.instagram.com/prog.ramming193/?utm_source=ig_web_button_share_sheet" target="_blank">Programador A.H.V</a></p> </p>
 </footer>
 
 <script>
@@ -60,8 +58,15 @@ const hoy = new Date().toISOString().split("T")[0];
 fechaInput.min = hoy;
 
 /* ===== HORARIO (8 AM - 11 PM) ===== */
-const HORA_INICIO = 8;   // 8 AM
-const HORA_FIN = 23;     // 11 PM
+const HORA_INICIO = 8;
+const HORA_FIN = 23;
+
+/* ===== CREAR UN ID ÚNICO PARA CADA USUARIO ===== */
+let usuarioID = localStorage.getItem("usuarioID");
+if (!usuarioID) {
+  usuarioID = 'user_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem("usuarioID", usuarioID);
+}
 
 /* ===== OBTENER DÍA ===== */
 function obtenerDia(fecha) {
@@ -77,19 +82,19 @@ function formatoHora(hora24) {
   return `${h} ${periodo}`;
 }
 
-/* ===== GENERAR HORAS DISPONIBLES ===== */
+/* ===== GENERAR HORAS DISPONIBLES (HORAS OCUPADAS GLOBALES) ===== */
 function generarHoras(fecha) {
   horaSelect.innerHTML = `<option value="">Selecciona una hora</option>`;
   if (!fecha) return;
 
   const citas = JSON.parse(localStorage.getItem("citas")) || [];
+  // Horas ocupadas globales
   const horasOcupadas = citas
     .filter(c => c.fecha === fecha)
     .map(c => c.hora);
 
   for (let h = HORA_INICIO; h <= HORA_FIN; h++) {
     const horaValue = `${h.toString().padStart(2, "0")}:00`;
-
     if (!horasOcupadas.includes(horaValue)) {
       const option = document.createElement("option");
       option.value = horaValue;
@@ -137,13 +142,14 @@ function agendarCita() {
 
   const citas = JSON.parse(localStorage.getItem("citas")) || [];
 
+  // Verificar globalmente si la hora está ocupada
   if (citas.some(c => c.fecha === fecha && c.hora === hora)) {
     alert("⛔ Ese turno ya está ocupado");
     generarHoras(fecha);
     return;
   }
 
-  citas.push({ nombre, fecha, hora });
+  citas.push({ nombre, fecha, hora, usuarioID });
   localStorage.setItem("citas", JSON.stringify(citas));
 
   enviarWhatsApp(nombre, fecha, hora);
@@ -153,7 +159,7 @@ function agendarCita() {
   document.getElementById("nombre").value = "";
 }
 
-/* ===== MOSTRAR CITAS ===== */
+/* ===== MOSTRAR CITA ===== */
 function mostrarCita(cita, index) {
   const div = document.createElement("div");
   const horaNum = parseInt(cita.hora);
@@ -172,7 +178,8 @@ function mostrarCita(cita, index) {
 function cargarCitas() {
   listaCitas.innerHTML = "";
   const citas = JSON.parse(localStorage.getItem("citas")) || [];
-  citas.forEach((c, i) => mostrarCita(c, i));
+  const misCitas = citas.filter(c => c.usuarioID === usuarioID);
+  misCitas.forEach((c, i) => mostrarCita(c, i));
 }
 
 /* ===== BORRAR CITA ===== */
@@ -184,9 +191,13 @@ function borrarCita(index) {
   }
 
   const citas = JSON.parse(localStorage.getItem("citas")) || [];
-  citas.splice(index, 1);
-  localStorage.setItem("citas", JSON.stringify(citas));
+  const misCitas = citas.filter(c => c.usuarioID === usuarioID);
+  const citaEliminar = misCitas[index];
+
+  const nuevaLista = citas.filter(c => c !== citaEliminar);
+  localStorage.setItem("citas", JSON.stringify(nuevaLista));
   cargarCitas();
+  generarHoras(fechaInput.value);
 }
 
 /* ===== BUSCAR CITA (RECORDATORIO) ===== */
@@ -194,8 +205,8 @@ function buscarCita() {
   const nombre = document.getElementById("buscarNombre").value.toLowerCase();
   const resultado = document.getElementById("resultadoCita");
   const citas = JSON.parse(localStorage.getItem("citas")) || [];
-
-  const cita = citas.find(c => c.nombre.toLowerCase() === nombre);
+  
+  const cita = citas.find(c => c.usuarioID === usuarioID && c.nombre.toLowerCase() === nombre);
 
   if (cita) {
     const horaNum = parseInt(cita.hora);
@@ -207,10 +218,8 @@ function buscarCita() {
 
 /* ===== INICIO ===== */
 cargarCitas();
+generarHoras(fechaInput.value);
 </script>
 
 </body>
 </html>
-
-
-
